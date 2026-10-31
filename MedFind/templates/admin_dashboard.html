@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ pharmacy.name }} – Administrator Portal – MEDFIND</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+</head>
+<body style="background: var(--surface-alt);">
+
+  <!-- Real-Time Admin Sync Banner -->
+  <div class="demo-banner">
+    <span class="badge-pill">Store Portal</span>
+    <span class="pulse-dot"></span>
+    <span>Managing inventory for <strong>{{ pharmacy.name }}</strong> ({{ pharmacy.city }}). Live sync active.</span>
+  </div>
+
+  <!-- Header & Navigation -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="{{ url_for('index') }}" class="brand-link">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MEDFIND" class="brand-logo-img">
+        <div class="brand-text">
+          <div class="brand-title">MED<span>FIND</span></div>
+          <span class="brand-tagline-small">Pharmacy Management Portal</span>
+        </div>
+      </a>
+
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <span class="text-muted" style="font-size: 0.9rem;">
+          Signed in as <strong>{{ session.username }}</strong>
+        </span>
+        <a href="{{ url_for('pharmacy_details', pharmacy_id=pharmacy.id) }}" target="_blank" class="btn btn-outline btn-sm">
+          👁️ Public Store View
+        </a>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fca5a5;">
+          Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash Messages -->
+  <div class="container flash-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Admin Subheader Strip -->
+  <section class="admin-header-strip">
+    <div class="container">
+      <div class="admin-header-flex">
+        <div>
+          <span class="badge" style="background: var(--primary-light); color: var(--primary-dark); margin-bottom: 0.4rem;">
+            📍 {{ pharmacy.city }} Branch
+          </span>
+          <h1 style="font-size: 2rem; color: var(--text-primary);">{{ pharmacy.name }}</h1>
+          <div class="text-muted" style="font-size: 0.9rem; margin-top: 3px;">
+            {{ pharmacy.address }} • {{ pharmacy.phone }} • {{ pharmacy.opening_hours }}
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary" data-modal-target="#addCatalogModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Medicine from Catalog
+          </button>
+
+          <button type="button" class="btn btn-outline-primary" data-modal-target="#createMedicineModal">
+            + Register New Drug
+          </button>
+
+          <button type="button" class="btn btn-outline" data-modal-target="#editPharmacyModal">
+            ⚙️ Edit Store Info
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Dashboard Content -->
+  <main class="container" style="flex: 1; margin-bottom: 3.5rem;">
+
+    <!-- Dashboard Metrics Cards -->
+    <div class="dashboard-metrics-grid">
+      <!-- Card 1: Total Medicines -->
+      <div class="metric-card">
+        <div class="metric-icon-box metric-icon-blue">💊</div>
+        <div class="metric-data">
+          <h4>{{ metrics.total_medicines }}</h4>
+          <span>Listed Medicines</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Healthy Stock -->
+      <div class="metric-card">
+        <div class="metric-icon-box metric-icon-green">✅</div>
+        <div class="metric-data">
+          <h4>{{ metrics.in_stock_count }}</h4>
+          <span>Healthy Stock (>10)</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Low Stock Alerts -->
+      <div class="metric-card" style="{% if metrics.low_stock_count > 0 %}border-color: #f59e0b; background: #fffdf5;{% endif %}">
+        <div class="metric-icon-box metric-icon-amber">⚠️</div>
+        <div class="metric-data">
+          <h4 style="color: #d97706;">{{ metrics.low_stock_count }}</h4>
+          <span>Low Stock Alerts (≤10)</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Active Patient Reservations -->
+      <div class="metric-card" style="border-color: #38bdf8; background: #f0f9ff;">
+        <div class="metric-icon-box" style="background: #e0f2fe; color: #0284c7;">⏱️</div>
+        <div class="metric-data">
+          <h4 style="color: #0284c7;">{{ metrics.active_reservations }}</h4>
+          <span>Active 2h Hold Orders</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Reservations Alert Strip (if any) -->
+    {% if reservations and reservations|length > 0 %}
+      <div style="background: #ffffff; border: 1px solid #bae6fd; border-left: 4px solid #0284c7; border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <strong style="color: #0369a1; font-size: 1.05rem;">
+            ⏱️ Recent Patient 2-Hour Pickup Hold Tokens ({{ reservations|length }})
+          </strong>
+          <span class="text-muted" style="font-size: 0.8rem;">Show up to 15 recent customer reservations</span>
+        </div>
+        <div style="display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.5rem;">
+          {% for res in reservations %}
+            <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.75rem 1rem; min-width: 220px; flex-shrink: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="badge badge-best-price" style="font-size: 0.72rem;">{{ res.reservation_code }}</span>
+                <span class="badge badge-in-stock" style="font-size: 0.65rem;">{{ res.status }}</span>
+              </div>
+              <div style="font-weight: 700; font-size: 0.95rem; margin-top: 5px; color: var(--text-primary);">
+                {{ res.medicine_name }}
+              </div>
+              <div class="text-muted" style="font-size: 0.8rem;">
+                👤 {{ res.patient_name }} • 📞 {{ res.patient_phone }}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Inventory Filter & Search Toolbar -->
+    <div class="admin-toolbar">
+      <div class="admin-filter-tabs">
+        <a href="{{ url_for('admin_dashboard') }}" class="filter-tab {% if not filter_low %}active{% endif %}">
+          All Listed Items ({{ metrics.total_medicines }})
+        </a>
+        <a href="{{ url_for('admin_dashboard', filter='low') }}" class="filter-tab {% if filter_low %}active{% endif %}">
+          ⚠️ Low Stock Alerts ({{ metrics.low_stock_count }})
+        </a>
+      </div>
+
+      <!-- Inventory Search Form -->
+      <form action="{{ url_for('admin_dashboard') }}" method="GET" style="display: flex; gap: 0.5rem;">
+        {% if filter_low %}
+          <input type="hidden" name="filter" value="low">
+        {% endif %}
+        <input 
+          type="text" 
+          name="q" 
+          value="{{ search_term }}" 
+          class="form-control" 
+          placeholder="Search your inventory..." 
+          style="width: 240px;"
+        >
+        <button type="submit" class="btn btn-outline btn-sm">Search</button>
+        {% if search_term %}
+          <a href="{{ url_for('admin_dashboard', filter='low' if filter_low else None) }}" class="btn btn-outline btn-sm">Clear</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- Inventory Data Table with 1-Click Fast Stock Boosters -->
+    {% if inventory and inventory|length > 0 %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Generic Formula</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Stock Qty & Meter</th>
+              <th>Price ($)</th>
+              <th>1-Click Restock</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in inventory %}
+              <tr style="{% if item.stock_quantity == 0 %}background-color: #fff5f5;{% elif item.stock_quantity <= 10 %}background-color: #fffdf5;{% endif %}">
+                <td>
+                  <strong>{{ item.medicine_name }}</strong>
+                  {% if item.prescription_required %}
+                    <span class="badge badge-rx">Rx</span>
+                  {% else %}
+                    <span class="badge badge-otc">OTC</span>
+                  {% endif %}
+                  <div class="text-muted" style="font-size: 0.78rem;">{{ item.dosage_form }} • {{ item.manufacturer }}</div>
+                </td>
+
+                <td class="text-muted">{{ item.generic_name }}</td>
+                <td>{{ item.category }}</td>
+
+                <td>
+                  {% if item.stock_quantity > 10 %}
+                    <span class="badge badge-in-stock">In Stock</span>
+                  {% elif item.stock_quantity > 0 %}
+                    <span class="badge badge-low-stock">⚠️ Low Stock</span>
+                  {% else %}
+                    <span class="badge badge-out-of-stock">❌ Out of Stock</span>
+                  {% endif %}
+                </td>
+
+                <td style="min-width: 140px;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <strong style="font-size: 1.15rem; {% if item.stock_quantity == 0 %}color: var(--danger);{% elif item.stock_quantity <= 10 %}color: var(--warning-text);{% endif %}">
+                      {{ item.stock_quantity }}
+                    </strong>
+                    <span class="text-muted" style="font-size: 0.75rem;">units</span>
+                  </div>
+                  <!-- Visual Mini Stock Progress Bar -->
+                  <div class="stock-gauge-bar" style="height: 5px; margin-top: 4px;">
+                    <div 
+                      class="stock-gauge-fill {% if item.stock_quantity > 10 %}gauge-green{% elif item.stock_quantity > 0 %}gauge-amber{% else %}gauge-red{% endif %}"
+                      style="width: {{ [item.stock_quantity * 2, 100]|min }}%;"
+                    ></div>
+                  </div>
+                </td>
+
+                <td>
+                  <strong style="color: var(--primary-dark); font-size: 1.1rem;">
+                    {{ item.price|currency }}
+                  </strong>
+                </td>
+
+                <!-- 1-Click Fast Stock Booster -->
+                <td>
+                  <div style="display: flex; gap: 0.35rem;">
+                    <form action="{{ url_for('admin_quick_adjust') }}" method="POST" style="display: inline;">
+                      <input type="hidden" name="medicine_id" value="{{ item.medicine_id }}">
+                      <input type="hidden" name="delta" value="5">
+                      <button type="submit" class="quick-boost-btn" title="Add 5 units immediately">+5</button>
+                    </form>
+                    <form action="{{ url_for('admin_quick_adjust') }}" method="POST" style="display: inline;">
+                      <input type="hidden" name="medicine_id" value="{{ item.medicine_id }}">
+                      <input type="hidden" name="delta" value="10">
+                      <button type="submit" class="quick-boost-btn" title="Add 10 units immediately">+10</button>
+                    </form>
+                    <form action="{{ url_for('admin_quick_adjust') }}" method="POST" style="display: inline;">
+                      <input type="hidden" name="medicine_id" value="{{ item.medicine_id }}">
+                      <input type="hidden" name="delta" value="-1">
+                      <button type="submit" class="quick-boost-btn" title="Deduct 1 sold unit">-1</button>
+                    </form>
+                  </div>
+                </td>
+
+                <td style="text-align: right;">
+                  <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                    <button 
+                      type="button" 
+                      class="btn btn-outline-primary btn-sm btn-edit-stock"
+                      data-med-id="{{ item.medicine_id }}"
+                      data-med-name="{{ item.medicine_name }}"
+                      data-qty="{{ item.stock_quantity }}"
+                      data-price="{{ item.price }}"
+                    >
+                      ✏️ Edit
+                    </button>
+
+                    <form 
+                      action="{{ url_for('admin_delete_stock', stock_id=item.stock_id) }}" 
+                      method="POST" 
+                      onsubmit="return confirmDelete('{{ item.medicine_name }}')"
+                    >
+                      <button type="submit" class="btn btn-outline btn-sm" style="color: var(--danger);" title="Remove Listing">
+                        🗑️
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="unavailable-box">
+        <h3 class="unavailable-title">No medicines found in this view.</h3>
+        <p class="unavailable-desc">
+          {% if filter_low %}
+            Good news! You have no medicines running critically low on stock.
+          {% else %}
+            Your pharmacy hasn't listed any medicines matching this filter yet.
+          {% endif %}
+        </p>
+        <button type="button" class="btn btn-primary" data-modal-target="#addCatalogModal">
+          + Add Medicine from Catalog
+        </button>
+      </div>
+    {% endif %}
+
+  </main>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 1: QUICK EDIT STOCK & PRICE -->
+  <!-- ================================================================= -->
+  <div id="editStockModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Update Stock & Price</h3>
+        <button type="button" class="modal-close-btn">&times;</button>
+      </div>
+
+      <form action="{{ url_for('admin_save_stock') }}" method="POST">
+        <input type="hidden" name="medicine_id" id="edit-med-id">
+
+        <div class="modal-body">
+          <p style="margin-bottom: 1.25rem;">
+            Updating inventory for: <strong id="edit-med-name" class="text-primary" style="font-size: 1.1rem;"></strong>
+          </p>
+
+          <div class="form-group">
+            <label for="edit-quantity" class="form-label">Available Stock Quantity (Units)</label>
+            <input 
+              type="number" 
+              name="stock_quantity" 
+              id="edit-quantity" 
+              class="form-control" 
+              min="0" 
+              required
+            >
+            <small class="text-muted">Enter 0 to mark out of stock. ≤ 10 triggers a low stock alert.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-price" class="form-label">Unit Price ($ USD)</label>
+            <input 
+              type="number" 
+              step="0.01" 
+              name="price" 
+              id="edit-price" 
+              class="form-control" 
+              min="0" 
+              required
+            >
+            <small class="text-muted">Changes immediately update the Best Price comparison for patients.</small>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-primary">Save & Sync Live</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 2: ADD MEDICINE FROM MASTER CATALOG -->
+  <!-- ================================================================= -->
+  <div id="addCatalogModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Medicine from Catalog</h3>
+        <button type="button" class="modal-close-btn">&times;</button>
+      </div>
+
+      <form action="{{ url_for('admin_save_stock') }}" method="POST">
+        <div class="modal-body">
+          <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 1.25rem;">
+            Select an essential drug from the central registry and enter your pharmacy's current stock and price.
+          </p>
+
+          <div class="form-group">
+            <label for="catalog-select" class="form-label">Select Medicine</label>
+            <select name="medicine_id" id="catalog-select" class="form-control" required>
+              <option value="">-- Choose from Available Catalog --</option>
+              {% for med in catalog %}
+                <option value="{{ med.id }}">
+                  {{ med.name }} ({{ med.generic_name }}) – {{ med.category }} [{{ med.dosage_form }}]
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="new-quantity" class="form-label">Initial Stock Quantity</label>
+            <input type="number" name="stock_quantity" id="new-quantity" class="form-control" value="25" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label for="new-price" class="form-label">Selling Price ($ USD)</label>
+            <input type="number" step="0.01" name="price" id="new-price" class="form-control" value="5.00" min="0" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-primary">Add to My Inventory</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 3: REGISTER NEW MEDICINE IN MASTER CATALOG -->
+  <!-- ================================================================= -->
+  <div id="createMedicineModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Register Brand New Medicine</h3>
+        <button type="button" class="modal-close-btn">&times;</button>
+      </div>
+
+      <form action="{{ url_for('admin_create_medicine') }}" method="POST">
+        <div class="modal-body">
+          <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 1.25rem;">
+            If the medicine is not in the system catalog, register it here. It will immediately be added to your inventory.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Brand / Commercial Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Dolo 650mg, Augmentin 625mg" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Generic Formula / Active Ingredient *</label>
+            <input type="text" name="generic_name" class="form-control" placeholder="e.g. Paracetamol, Amoxicillin + Clavulanate" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Therapeutic Category *</label>
+              <input type="text" name="category" class="form-control" placeholder="e.g. Analgesic, Antibiotic" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dosage Form</label>
+              <select name="dosage_form" class="form-control">
+                <option value="Tablet">Tablet</option>
+                <option value="Capsule">Capsule</option>
+                <option value="Syrup">Syrup</option>
+                <option value="Injection">Injection</option>
+                <option value="Ointment">Ointment / Cream</option>
+                <option value="Drops">Drops</option>
+                <option value="Inhaler">Inhaler</option>
+                <option value="Sachet">Sachet</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Manufacturer / Lab</label>
+            <input type="text" name="manufacturer" class="form-control" placeholder="e.g. Pfizer, Sun Pharma, Cipla">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Prescription Policy</label>
+            <select name="prescription_required" class="form-control">
+              <option value="0">Over-the-Counter (OTC) – No Prescription Needed</option>
+              <option value="1">Prescription Required (Rx)</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Initial Stock Quantity *</label>
+              <input type="number" name="stock_quantity" class="form-control" value="20" min="0" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Price ($ USD) *</label>
+              <input type="number" step="0.01" name="price" class="form-control" value="6.50" min="0" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Description / Indication</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Brief description of usage..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-primary">Register & Add Stock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 4: EDIT PHARMACY CONTACT & OPERATIONAL INFO -->
+  <!-- ================================================================= -->
+  <div id="editPharmacyModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Pharmacy Information</h3>
+        <button type="button" class="modal-close-btn">&times;</button>
+      </div>
+
+      <form action="{{ url_for('admin_update_pharmacy') }}" method="POST">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Pharmacy Trade Name *</label>
+            <input type="text" name="name" class="form-control" value="{{ pharmacy.name }}" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Direct Contact Phone Number *</label>
+            <input type="text" name="phone" class="form-control" value="{{ pharmacy.phone }}" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Physical Street Address *</label>
+            <input type="text" name="address" class="form-control" value="{{ pharmacy.address }}" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">City / Neighborhood Area *</label>
+            <input type="text" name="city" class="form-control" value="{{ pharmacy.city }}" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Operating / Opening Hours</label>
+            <input type="text" name="opening_hours" class="form-control" value="{{ pharmacy.opening_hours }}" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-primary">Update Pharmacy Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

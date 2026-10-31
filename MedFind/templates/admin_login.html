@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pharmacy Administrator Login – MEDFIND</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+</head>
+<body style="background: var(--surface-alt);">
+
+  <!-- Demo Banner -->
+  <div class="demo-banner">
+    <span class="badge-pill">Chemist Access</span>
+    <span>Secure portal for registered pharmacy managers to update medicine inventories.</span>
+  </div>
+
+  <div class="container" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+    <div class="admin-login-wrapper">
+
+      <!-- Login Card -->
+      <div class="login-card">
+        <div class="login-header">
+          <a href="{{ url_for('index') }}" class="brand-link" style="justify-content: center; margin-bottom: 0.5rem;">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MEDFIND" class="brand-logo-img">
+            <div class="brand-title">MED<span>FIND</span></div>
+          </a>
+          <h2>Pharmacy Administrator</h2>
+          <p class="text-muted" style="font-size: 0.88rem;">
+            Sign in to manage stock availability, update prices, and review low-stock alerts.
+          </p>
+        </div>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Login Form -->
+        <form action="{{ url_for('admin_login') }}" method="POST">
+          <div class="form-group">
+            <label for="admin-username" class="form-label">Username</label>
+            <div class="input-group">
+              <span class="input-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
+              <input 
+                type="text" 
+                id="admin-username" 
+                name="username" 
+                class="form-control" 
+                placeholder="e.g. apex_admin" 
+                required
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="admin-password" class="form-label">Password</label>
+            <div class="input-group">
+              <span class="input-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </span>
+              <input 
+                type="password" 
+                id="admin-password" 
+                name="password" 
+                class="form-control" 
+                placeholder="Enter password" 
+                required
+              >
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+            Sign In to Dashboard
+          </button>
+        </form>
+
+        <!-- Hackathon Demonstration Quick-Credentials Box -->
+        <div class="demo-accounts-box">
+          <strong style="font-size: 0.82rem; color: var(--primary-dark); display: block; margin-bottom: 0.4rem;">
+            ⚡ Quick-Click Demo Accounts (Click to auto-fill):
+          </strong>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+            <span class="demo-account-chip" data-username="apex_admin" data-password="admin123">
+              🏥 Apex Health (Downtown)
+            </span>
+            <span class="demo-account-chip" data-username="metro_admin" data-password="admin123">
+              🏥 Metro Care (North Hills)
+            </span>
+            <span class="demo-account-chip" data-username="wellness_admin" data-password="admin123">
+              🏥 Wellness Forever (Westside)
+            </span>
+            <span class="demo-account-chip" data-username="greencross_admin" data-password="admin123">
+              🏥 Green Cross (Univ. District)
+            </span>
+            <span class="demo-account-chip" data-username="lifeline_admin" data-password="admin123">
+              🏥 Lifeline Pharma (East Park)
+            </span>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.5rem;">
+            Default demo password for all accounts: <code>admin123</code> (secured with scrypt/werkzeug hashing).
+          </div>
+        </div>
+
+        <div class="text-center" style="margin-top: 1.5rem;">
+          <a href="{{ url_for('index') }}" class="text-muted" style="font-size: 0.88rem;">
+            ← Return to Patient Search Homepage
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
+

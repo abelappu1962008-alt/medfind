@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEDFIND – Smart Medicine Availability Finder</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+</head>
+<body>
+
+  <!-- Top Real-Time Status Banner -->
+  <div class="demo-banner">
+    <span class="badge-pill">Real-Time Sync</span>
+    <span class="pulse-dot"></span>
+    <span>Connected to <strong>{{ stats.total_pharmacies }} partner pharmacies</strong> with live inventory verification.</span>
+  </div>
+
+  <!-- Header & Navigation Bar -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="{{ url_for('index') }}" class="brand-link">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MEDFIND Logo" class="brand-logo-img">
+        <div class="brand-text">
+          <div class="brand-title">MED<span>FIND</span></div>
+          <span class="brand-tagline-small">Smart Medicine Finder</span>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('index') }}" class="active">Home</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#rx-scan">Rx Scanner</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li>
+            <a href="{{ url_for('admin_login') }}" class="btn-admin-nav">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Pharmacy Admin
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Flash Messages Container -->
+  <div class="container flash-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Hero Section with Modern Search Card -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-pill">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          No Sign-up Required • Instant Multi-Store Stock Verification
+        </div>
+
+        <h1 class="hero-title">Find Medicines. Save Time.<br>Stay Informed.</h1>
+        <p class="hero-tagline">
+          Locate available prescription & OTC medicines across verified pharmacies in seconds. Compare prices, check real stock levels, and hold for pickup.
+        </p>
+
+        <!-- Big Search Bar Card with Autocomplete -->
+        <div class="search-card">
+          <form action="{{ url_for('search') }}" method="GET" class="search-form">
+            <!-- Medicine Name Input -->
+            <div class="input-group" style="position: relative;">
+              <span class="input-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <input 
+                type="text" 
+                id="medicine-input" 
+                name="query" 
+                class="search-input" 
+                placeholder="Search medicine (e.g. Paracetamol, Amoxicillin, Metformin...)" 
+                required 
+                autocomplete="off"
+              >
+            </div>
+
+            <!-- Autocomplete Suggestion Dropdown -->
+            <div id="autocomplete-results" class="autocomplete-box"></div>
+
+            <!-- Location Selection Dropdown -->
+            <div class="input-group">
+              <span class="input-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+              </span>
+              <select name="location" class="location-select">
+                <option value="">All Locations</option>
+                {% for loc in locations %}
+                  <option value="{{ loc }}">{{ loc }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Search Button -->
+            <button type="submit" class="btn-search-hero">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              Find Medicines
+            </button>
+          </form>
+        </div>
+
+        <!-- Category Pills (1-Click Searches) -->
+        <div class="category-pills-row">
+          <span style="font-size: 0.85rem; color: #e2e8f0; margin-right: 0.25rem;">Quick Categories:</span>
+          <a href="{{ url_for('search') }}?query=Paracetamol" class="cat-pill">🤒 Fever & Pain</a>
+          <a href="{{ url_for('search') }}?query=Amoxicillin" class="cat-pill">💊 Antibiotics</a>
+          <a href="{{ url_for('search') }}?query=Metformin" class="cat-pill">🩸 Diabetes</a>
+          <a href="{{ url_for('search') }}?query=Amlodipine" class="cat-pill">🫀 Heart & BP</a>
+          <a href="{{ url_for('search') }}?query=Cetirizine" class="cat-pill">🤧 Allergy Relief</a>
+          <a href="{{ url_for('search') }}?query=Vitamin" class="cat-pill">🌿 Vitamins</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Real-Time Metrics Strip -->
+  <section class="stats-strip">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-number">{{ stats.total_pharmacies }}</div>
+          <div class="stat-label">Verified Pharmacies</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ stats.total_medicines }}+</div>
+          <div class="stat-label">Cataloged Drugs</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ stats.total_units }}</div>
+          <div class="stat-label">Active Units In Stock</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">
+            <span class="pulse-dot" style="margin-right: 4px; vertical-align: middle;"></span> Live
+          </div>
+          <div class="stat-label">Real-Time Sync Engine</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-pill">Simplified Care</span>
+        <h2 class="section-title">How MEDFIND Works</h2>
+        <p class="section-subtitle">
+          Eliminate pharmacy hopping in four quick steps. Zero hassle, zero unnecessary travel.
+        </p>
+      </div>
+
+      <div class="workflow-grid">
+        <div class="workflow-card">
+          <div class="workflow-step-num">01</div>
+          <div class="workflow-icon">🔍</div>
+          <h3 class="workflow-title">Search Medicine</h3>
+          <p class="workflow-desc">
+            Type brand or active generic formula. Our smart autocomplete ensures you choose the exact dosage form.
+          </p>
+        </div>
+
+        <div class="workflow-card">
+          <div class="workflow-step-num">02</div>
+          <div class="workflow-icon">📍</div>
+          <h3 class="workflow-title">Filter by Location</h3>
+          <p class="workflow-desc">
+            Filter by your immediate neighborhood or view all verified pharmacies across town with estimated travel distance.
+          </p>
+        </div>
+
+        <div class="workflow-card">
+          <div class="workflow-step-num">03</div>
+          <div class="workflow-icon">⚖️</div>
+          <h3 class="workflow-title">Compare Stock & Price</h3>
+          <p class="workflow-desc">
+            Check real stock counts, visual stock gauges, and "Best Price" ribbons to save money on every prescription.
+          </p>
+        </div>
+
+        <div class="workflow-card">
+          <div class="workflow-step-num">04</div>
+          <div class="workflow-icon">📱</div>
+          <h3 class="workflow-title">Hold & Collect</h3>
+          <p class="workflow-desc">
+            Lock in a 2-hour pickup reservation or call the pharmacist with 1 click before stepping out of your home.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive AI Prescription Reader Simulation (Hackathon Innovation) -->
+  <section id="rx-scan" class="section section-alt">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-pill">Next-Gen Feature</span>
+        <h2 class="section-title">Smart Prescription Fast-Finder</h2>
+        <p class="section-subtitle">
+          Have a handwritten or printed prescription? Upload or click a sample to auto-detect and check medicine availability instantly.
+        </p>
+      </div>
+
+      <div class="rx-scanner-card" id="rx-scanner-dropzone">
+        <div style="font-size: 2.75rem; margin-bottom: 0.75rem;">📄 ➔ ⚡</div>
+        <h3 style="font-size: 1.35rem; color: var(--text-primary); margin-bottom: 0.5rem;">
+          Drag & Drop Prescription Photo Here
+        </h3>
+        <p class="text-muted" style="max-width: 520px; margin: 0 auto 1.5rem; font-size: 0.92rem;">
+          Our simulated AI extractor parses drug names, checks real-time inventory at nearby stores, and displays the best prices.
+        </p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline-primary btn-sm demo-rx-btn" data-query="Paracetamol">
+            📋 Try Sample: Dr. Smith Rx (Paracetamol 650mg)
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm demo-rx-btn" data-query="Amoxicillin">
+            📋 Try Sample: Dental Care Rx (Amoxicillin 500mg)
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm demo-rx-btn" data-query="Metformin">
+            📋 Try Sample: Endocrine Rx (Metformin 500mg)
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About MedFind Section -->
+  <section id="about" class="section">
+    <div class="container">
+      <div class="about-grid">
+        <div>
+          <span class="section-pill">Our Mission</span>
+          <h2 class="section-title">Solving Real-World Healthcare Accessibility</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+            When patients or their caregivers receive urgent prescriptions, finding specialized or high-demand medications often turns into an exhausting ordeal. Patients frequently visit three to five separate pharmacies before locating required stock.
+          </p>
+          <p style="color: var(--text-secondary);">
+            <strong>MEDFIND</strong> bridges this gap by creating an open, transparent digital bridge between retail pharmacies and the public. With decentralized inventory updates, patients know beforehand exactly which store has their medicine, how much it costs, and when the inventory was last verified.
+          </p>
+
+          <div class="about-badge-list">
+            <div class="about-badge-item">
+              <div class="about-check-icon">✓</div>
+              <div>
+                <strong>Zero Sign-Up Required for Patients</strong>
+                <p class="text-muted" style="font-size: 0.88rem;">Anyone can search immediately without forced logins, credit card forms, or delays.</p>
+              </div>
+            </div>
+            <div class="about-badge-item">
+              <div class="about-check-icon">✓</div>
+              <div>
+                <strong>Decentralized Pharmacy Portals</strong>
+                <p class="text-muted" style="font-size: 0.88rem;">Local chemists manage their own live stock, trigger low-stock replenishment, and receive reservations.</p>
+              </div>
+            </div>
+            <div class="about-badge-item">
+              <div class="about-check-icon">✓</div>
+              <div>
+                <strong>Transparent Price Comparison</strong>
+                <p class="text-muted" style="font-size: 0.88rem;">Empowers patients to choose the most affordable verified pharmacy nearby.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="about-highlight-card">
+            <h3 style="color: var(--primary-dark); margin-bottom: 0.75rem;">Hackathon Innovation Highlights</h3>
+            <p style="color: var(--text-secondary); font-size: 0.95rem;">
+              Engineered with clean Python 3, Flask, and relational SQLite, MEDFIND delivers instant queries, parameterized SQL safety, and mobile-first responsive usability.
+            </p>
+
+            <div class="highlight-stat-box">
+              <div style="font-size: 1.6rem; font-weight: 850; color: var(--primary-color);">~45 Minutes</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">Average patient travel time saved per prescription query</div>
+            </div>
+
+            <div class="highlight-stat-box">
+              <div style="font-size: 1.6rem; font-weight: 850; color: var(--accent-color);">2-Hour Hold Token</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">Instant digital token reservation prevents stock being sold out en route</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact & Emergency Support Section -->
+  <section id="contact" class="section section-alt">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-pill">Assistance</span>
+        <h2 class="section-title">Need Help or Pharmacy Onboarding?</h2>
+        <p class="section-subtitle">
+          Have questions or want your neighborhood pharmacy listed on MEDFIND? Get in touch with our student team.
+        </p>
+      </div>
+
+      <div class="contact-card-grid">
+        <div class="contact-card">
+          <div class="contact-card-icon">📞</div>
+          <h3>24/7 Patient Helpline</h3>
+          <p class="text-muted" style="margin: 0.5rem 0 1rem; font-size: 0.88rem;">Emergency medication directory helpline for assistance locating critical stock.</p>
+          <a href="tel:18005550199" class="btn btn-outline-primary btn-sm">+1 (800) 555-0199</a>
+        </div>
+
+        <div class="contact-card">
+          <div class="contact-card-icon">✉️</div>
+          <h3>Pharmacy Partner Desk</h3>
+          <p class="text-muted" style="margin: 0.5rem 0 1rem; font-size: 0.88rem;">Are you a local medical store owner? Request an administrator login.</p>
+          <a href="mailto:support@medfind.org" class="btn btn-outline-primary btn-sm">support@medfind.org</a>
+        </div>
+
+        <div class="contact-card">
+          <div class="contact-card-icon">🏥</div>
+          <h3>Hackathon Judge Demo</h3>
+          <p class="text-muted" style="margin: 0.5rem 0 1rem; font-size: 0.88rem;">Explore the admin backend with 1-click preloaded demo accounts.</p>
+          <a href="{{ url_for('admin_login') }}" class="btn btn-primary btn-sm">Try Admin Demo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-disclaimer">
+        <strong>⚠️ Healthcare Information & Prescriptions Notice:</strong>
+        MEDFIND is an informational availability and pricing directory. We do not prescribe medication, verify diagnoses, or sell drugs directly. Prescription medications (Rx) strictly require a valid physical prescription from a licensed medical practitioner upon collection at the dispensing pharmacy. Never substitute or discontinue medications without professional medical advice.
+      </div>
+
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="brand-title" style="color: #ffffff; margin-bottom: 0.5rem;">
+            MED<span style="color: var(--accent-color);">FIND</span>
+          </div>
+          <p>
+            Smart Medicine Availability Finder. Built with Python, Flask, and SQLite for the college hackathon competition.
+          </p>
+          <p style="margin-top: 0.75rem; font-size: 0.8rem; color: #64748b;">
+            Tagline: "Find Medicines. Save Time. Stay Informed."
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <ul class="footer-links">
+            <li><a href="{{ url_for('index') }}">Home Search</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#rx-scan">Rx Scanner</a></li>
+            <li><a href="#about">About Project</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Quick Searches</h4>
+          <ul class="footer-links">
+            <li><a href="{{ url_for('search') }}?query=Paracetamol">Paracetamol 650mg</a></li>
+            <li><a href="{{ url_for('search') }}?query=Amoxicillin">Amoxicillin 500mg</a></li>
+            <li><a href="{{ url_for('search') }}?query=Metformin">Metformin 500mg</a></li>
+            <li><a href="{{ url_for('search') }}?query=Insulin">Insulin Glargine</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Technologies</h4>
+          <ul class="footer-links">
+            <li><span>Python 3 & Flask WSGI</span></li>
+            <li><span>SQLite 3 Relational DB</span></li>
+            <li><span>Modern CSS3 & Vanilla JS</span></li>
+            <li><span>Live Search Engine</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>© 2026 MEDFIND Project. All rights reserved. Built for College Hackathon.</div>
+        <div>Tagline: <em>Find Medicines. Save Time. Stay Informed.</em></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

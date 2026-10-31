@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Results for "{{ query }}" – MEDFIND</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+</head>
+<body>
+
+  <!-- Top Real-Time Search Status -->
+  <div class="demo-banner">
+    <span class="badge-pill">Live Query</span>
+    <span class="pulse-dot"></span>
+    <span>Comparing availability, distance & price across verified dispensing pharmacies.</span>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="{{ url_for('index') }}" class="brand-link">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MEDFIND Logo" class="brand-logo-img">
+        <div class="brand-text">
+          <div class="brand-title">MED<span>FIND</span></div>
+          <span class="brand-tagline-small">Smart Medicine Finder</span>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('index') }}">Home</a></li>
+          <li>
+            <a href="{{ url_for('admin_login') }}" class="btn-admin-nav">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Pharmacy Admin
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Refined Search Bar Strip -->
+  <section class="search-header-bar">
+    <div class="container">
+      <form action="{{ url_for('search') }}" method="GET" class="search-bar-inline">
+        <div class="input-group" style="position: relative;">
+          <span class="input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input 
+            type="text" 
+            id="medicine-input" 
+            name="query" 
+            value="{{ query }}" 
+            class="search-input" 
+            placeholder="Search medicine name..." 
+            required 
+            autocomplete="off"
+          >
+        </div>
+
+        <div id="autocomplete-results" class="autocomplete-box"></div>
+
+        <div class="input-group">
+          <span class="input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </span>
+          <select name="location" class="location-select">
+            <option value="">All Locations</option>
+            {% for loc in locations %}
+              <option value="{{ loc }}" {% if location == loc %}selected{% endif %}>{{ loc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="input-group">
+          <span class="input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+          </span>
+          <select name="sort_by" id="sort-select" class="location-select">
+            <option value="availability" {% if sort_by == 'availability' %}selected{% endif %}>Sort: Available First</option>
+            <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+            <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+            <option value="stock_desc" {% if sort_by == 'stock_desc' %}selected{% endif %}>Stock: High to Low</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          Search
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Main Search Results Container -->
+  <main class="container" style="flex: 1;">
+
+    <!-- Meta Information Header with Map Toggle -->
+    <div class="results-meta-bar">
+      <div>
+        <div class="results-count-text">
+          Showing verified stock for <span class="text-primary">"{{ query }}"</span>
+          {% if location %} in <span class="text-primary">{{ location }}</span>{% endif %}
+        </div>
+        <div class="text-muted" style="font-size: 0.88rem; margin-top: 3px;">
+          Found {{ results|length }} pharmacy listings • In-stock pharmacies prioritized
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.65rem;">
+        <button type="button" class="btn btn-outline btn-sm" id="toggle-map-btn">
+          🗺️ Toggle Pharmacy Map
+        </button>
+        <a href="{{ url_for('index') }}" class="btn btn-outline btn-sm">
+          ← Back to Search
+        </a>
+      </div>
+    </div>
+
+    <!-- Interactive Simulated Pharmacy Location Map -->
+    <div class="map-preview-box" id="map-preview-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <strong style="color: var(--text-primary); font-size: 0.95rem;">
+          📍 Regional Pharmacy Coverage Map (Simulated GPS Pins)
+        </strong>
+        <span class="text-muted" style="font-size: 0.78rem;">Click a pin to view store details</span>
+      </div>
+
+      <div class="map-canvas-container">
+        <!-- Visual Grid Overlay -->
+        <svg width="100%" height="100%" style="position: absolute; opacity: 0.25;">
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#475569" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+
+        <!-- Simulated Interactive Location Pins -->
+        <div class="map-pin" style="top: 25%; left: 18%;" title="Apex Health (Downtown) - 0.8 mi">
+          🏥 Apex Health (0.8 mi)
+        </div>
+        <div class="map-pin" style="top: 15%; right: 28%;" title="Metro Care (North Hills) - 1.4 mi">
+          🏥 Metro Care (1.4 mi)
+        </div>
+        <div class="map-pin" style="bottom: 28%; left: 32%;" title="Wellness Forever (Westside) - 2.1 mi">
+          🏥 Wellness Forever (2.1 mi)
+        </div>
+        <div class="map-pin" style="bottom: 20%; right: 22%;" title="Green Cross (Univ. District) - 1.1 mi">
+          🏥 Green Cross (1.1 mi)
+        </div>
+        <div class="map-pin" style="top: 45%; right: 10%;" title="Lifeline Pharma (East Park) - 2.7 mi">
+          🏥 Lifeline Hub (2.7 mi)
+        </div>
+      </div>
+    </div>
+
+    <!-- Case 1: Results Found -->
+    {% if results and results|length > 0 %}
+      <div class="results-grid">
+        {% for item in results %}
+          <div class="pharmacy-card {% if item.stock_quantity == 0 %}out-of-stock-card{% endif %}" id="pharmacy-card-{{ item.pharmacy_id }}">
+            
+            <!-- Best Price Highlight Ribbon -->
+            {% if item.is_best_price %}
+              <div class="card-best-price-ribbon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                Best Price
+              </div>
+            {% endif %}
+
+            <!-- Column 1: Pharmacy Name, Medicine & Location -->
+            <div class="col-pharmacy-info">
+              <h3>
+                <a href="{{ url_for('pharmacy_details', pharmacy_id=item.pharmacy_id) }}" class="pharmacy-name-link">
+                  {{ item.pharmacy_name }}
+                </a>
+              </h3>
+
+              <div class="pharmacy-location-line">
+                <span class="badge badge-dist">📍 {{ item.distance_miles }} mi away</span>
+                <span>{{ item.pharmacy_address }} ({{ item.pharmacy_city }})</span>
+                {% if item.is_open_247 %}
+                  <span class="badge badge-in-stock" style="font-size: 0.7rem;">🕒 24/7 Open</span>
+                {% else %}
+                  <span>• {{ item.opening_hours }}</span>
+                {% endif %}
+              </div>
+
+              <div class="medicine-badge-group">
+                <strong style="color: var(--text-primary);">{{ item.medicine_name }}</strong>
+                <span class="medicine-subtext">({{ item.generic_name }})</span>
+                <span class="badge badge-demo">{{ item.dosage_form }}</span>
+                {% if item.prescription_required %}
+                  <span class="badge badge-rx">Rx Required</span>
+                {% else %}
+                  <span class="badge badge-otc">OTC Available</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Column 2: Stock Availability & Visual Gauge -->
+            <div class="col-stock-info">
+              <div>
+                {% if item.stock_quantity > 10 %}
+                  <span class="badge badge-in-stock">
+                    <span class="pulse-dot" style="width: 6px; height: 6px;"></span>
+                    In Stock
+                  </span>
+                {% elif item.stock_quantity > 0 %}
+                  <span class="badge badge-low-stock">
+                    ⚠️ Low Stock (Only {{ item.stock_quantity }} left)
+                  </span>
+                {% else %}
+                  <span class="badge badge-out-of-stock">
+                    ❌ Out of Stock
+                  </span>
+                {% endif %}
+              </div>
+
+              <div class="stock-qty-display">
+                {% if item.stock_quantity > 0 %}
+                  {{ item.stock_quantity }} <span style="font-size: 0.88rem; font-weight: 500; color: var(--text-muted);">units available</span>
+                {% else %}
+                  <span style="color: var(--danger); font-size: 1.1rem;">0 units</span>
+                {% endif %}
+              </div>
+
+              <!-- Visual Stock Level Bar -->
+              <div class="stock-gauge-wrapper">
+                <div class="stock-gauge-bar">
+                  <div 
+                    class="stock-gauge-fill {% if item.stock_quantity > 10 %}gauge-green{% elif item.stock_quantity > 0 %}gauge-amber{% else %}gauge-red{% endif %}"
+                    style="width: {{ item.stock_percent }}%;"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Last Updated Indicator -->
+              <div class="stock-timestamp" title="Timestamp: {{ item.last_updated }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Updated {{ item.last_updated|time_ago }}</span>
+                {% if item.is_demo_data %}
+                  <span class="text-muted" style="font-size: 0.72rem;">(Demo Sync)</span>
+                {% else %}
+                  <span style="color: var(--primary-color); font-size: 0.72rem; font-weight: 750;">(Verified)</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Column 3: Price Comparison -->
+            <div class="col-price-info">
+              <div class="price-main">
+                {{ item.price|currency }}
+              </div>
+              <div class="price-unit-label">Per pack / strip</div>
+              {% if item.is_best_price %}
+                <span class="badge badge-best-price" style="margin-top: 5px;">Lowest Price</span>
+              {% endif %}
+            </div>
+
+            <!-- Column 4: Contact & Actions -->
+            <div class="col-actions">
+              {% if item.stock_quantity > 0 %}
+                <!-- Hold / Reserve Button -->
+                <button 
+                  type="button" 
+                  class="btn btn-reserve btn-sm btn-open-reserve"
+                  data-pharmacy-id="{{ item.pharmacy_id }}"
+                  data-pharmacy-name="{{ item.pharmacy_name }}"
+                  data-medicine-id="{{ item.medicine_id }}"
+                  data-medicine-name="{{ item.medicine_name }}"
+                  data-price="{{ item.price|currency }}"
+                >
+                  ⏱️ Hold for 2h
+                </button>
+
+                <!-- Direct Call Button -->
+                <a href="tel:{{ item.pharmacy_phone }}" class="btn btn-call-pharmacy btn-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                  </svg>
+                  Call Store
+                </a>
+              {% else %}
+                <button class="btn btn-outline btn-sm" disabled style="opacity: 0.6; cursor: not-allowed;">
+                  Out of Stock
+                </button>
+              {% endif %}
+
+              <a href="{{ url_for('pharmacy_details', pharmacy_id=item.pharmacy_id) }}" class="btn btn-outline btn-sm">
+                View Profile
+              </a>
+            </div>
+
+          </div>
+        {% endfor %}
+      </div>
+
+    <!-- Case 2: Medicine Completely Unavailable in Listed Pharmacies -->
+    {% else %}
+      <div class="unavailable-box">
+        <div class="unavailable-icon">⚠️</div>
+        <h3 class="unavailable-title">
+          Sorry, this medicine is currently unavailable in the listed pharmacies.
+        </h3>
+        <p class="unavailable-desc">
+          We could not find any active stock records matching <strong>"{{ query }}"</strong>
+          {% if location %} in the <strong>{{ location }}</strong> area{% endif %}.
+        </p>
+
+        <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+          {% if location %}
+            <a href="{{ url_for('search') }}?query={{ query }}" class="btn btn-primary">
+              Search All Locations (Remove Location Filter)
+            </a>
+          {% endif %}
+          <a href="{{ url_for('index') }}" class="btn btn-outline">
+            Try Another Medicine Name
+          </a>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Innovative Feature: Alternative In-Stock Pharmacies -->
+    {% if alternatives and alternatives|length > 0 %}
+      <section class="alternatives-section">
+        <div class="alternatives-header">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--primary-color)">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          <div>
+            <h4>Alternative Pharmacies With Available Stock</h4>
+            <div class="text-muted" style="font-size: 0.82rem;">These pharmacies currently have verified stock of {{ query }}:</div>
+          </div>
+        </div>
+
+        <div class="alternatives-grid">
+          {% for alt in alternatives %}
+            <div class="alternative-card">
+              <div>
+                <strong style="color: var(--text-primary); display: block;">{{ alt.pharmacy_name }}</strong>
+                <span class="text-muted" style="font-size: 0.8rem;">📍 {{ alt.pharmacy_city }} • {{ alt.stock_quantity }} in stock</span>
+                <div style="font-weight: 700; color: var(--primary-color); font-size: 0.95rem; margin-top: 2px;">
+                  {{ alt.price|currency }}
+                </div>
+              </div>
+              <div>
+                <a href="tel:{{ alt.pharmacy_phone }}" class="btn btn-call-pharmacy btn-sm">
+                  Call Store
+                </a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+  </main>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: 2-HOUR MEDICINE PICKUP HOLD RESERVATION -->
+  <!-- ================================================================= -->
+  <div id="reserveModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">⏱️ Hold Medicine for 2 Hours</h3>
+        <button type="button" class="modal-close-btn">&times;</button>
+      </div>
+
+      <form id="reserveForm">
+        <input type="hidden" name="pharmacy_id" id="reserve-pharmacy-id">
+        <input type="hidden" name="medicine_id" id="reserve-medicine-id">
+
+        <div class="modal-body">
+          <div style="background: var(--surface-alt); padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
+            <div>Medicine: <strong id="reserve-med-title" class="text-primary"></strong></div>
+            <div style="margin-top: 3px;">Pharmacy: <strong id="reserve-pharm-title"></strong></div>
+            <div style="margin-top: 3px;">Price: <strong id="reserve-price-title" style="color: var(--primary-dark);"></strong></div>
+          </div>
+
+          <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Reserve 1 unit so it won't sell out before you arrive. The pharmacy will hold it for 2 hours.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Patient / Collector Name *</label>
+            <input type="text" name="patient_name" id="reserve-name" class="form-control" placeholder="e.g. John Doe" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mobile Phone Number *</label>
+            <input type="tel" name="patient_phone" id="reserve-phone" class="form-control" placeholder="e.g. +1 (555) 019-2834" required>
+            <small class="text-muted">You will receive an SMS pickup token code.</small>
+          </div>
+
+          <div id="reserve-confirmation-box" style="display: none; background: #ecfdf5; border: 1px solid #10b981; border-radius: var(--radius-md); padding: 1.25rem; text-align: center; margin-top: 1rem;">
+            <div style="font-size: 1.5rem; color: #059669; font-weight: 850;" id="token-display">MED-0000</div>
+            <div style="font-size: 0.88rem; color: #065f46; margin-top: 0.5rem;" id="token-msg">
+              Your 2-Hour Hold is Active! Show this code at the pharmacy counter.
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" id="reserve-modal-footer">
+          <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-reserve">Confirm 2-Hour Reservation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer" style="margin-top: 3.5rem;">
+    <div class="container">
+      <div class="footer-disclaimer">
+        <strong>⚠️ Medical Caution:</strong> Information displayed is provided directly by member pharmacies. MEDFIND does not substitute professional medical judgment. Always bring a valid physical doctor's prescription for scheduled drugs.
+      </div>
+      <div class="footer-bottom">
+        <div>© 2026 MEDFIND – Smart Medicine Availability Finder</div>
+        <div>Tagline: <em>Find Medicines. Save Time. Stay Informed.</em></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

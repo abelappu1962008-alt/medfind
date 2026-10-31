@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ pharmacy.name }} – Pharmacy Profile – MEDFIND</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+</head>
+<body>
+
+  <!-- Top Banner -->
+  <div class="demo-banner">
+    <span class="badge-pill">Verified Chemist Profile</span>
+    <span>Review active inventory and stock levels for {{ pharmacy.name }}.</span>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="{{ url_for('index') }}" class="brand-link">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MEDFIND Logo" class="brand-logo-img">
+        <div class="brand-text">
+          <div class="brand-title">MED<span>FIND</span></div>
+          <span class="brand-tagline-small">Smart Medicine Finder</span>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('index') }}">Home</a></li>
+          <li>
+            <a href="{{ url_for('admin_login') }}" class="btn-admin-nav">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Pharmacy Admin
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="flex: 1;">
+
+    <!-- Pharmacy Banner Card -->
+    <div class="pharmacy-banner-card">
+      <div class="pharmacy-banner-info">
+        <span class="badge" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; margin-bottom: 0.5rem;">
+          ⭐ {{ pharmacy.rating }} Verified Retailer
+        </span>
+        <h1>{{ pharmacy.name }}</h1>
+        <div class="pharmacy-banner-meta">
+          <div>📍 {{ pharmacy.address }}, {{ pharmacy.city }}</div>
+          <div>🕒 {{ pharmacy.opening_hours }}</div>
+          {% if pharmacy.email %}
+            <div>✉️ {{ pharmacy.email }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="pharmacy-banner-actions">
+        <a href="tel:{{ pharmacy.phone }}" class="btn btn-primary" style="background: #ffffff; color: var(--primary-dark);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+          </svg>
+          Call {{ pharmacy.phone }}
+        </a>
+      </div>
+    </div>
+
+    <!-- Inventory Filter Toolbar -->
+    <div class="admin-toolbar">
+      <div>
+        <h3 style="font-size: 1.35rem; color: var(--text-primary);">
+          Available Medicines at this Pharmacy ({{ inventory|length }})
+        </h3>
+        <p class="text-muted" style="font-size: 0.88rem;">
+          Stock quantities and prices reflect live inventory data from this dispensary.
+        </p>
+      </div>
+
+      <!-- Quick Search within this pharmacy -->
+      <form action="{{ url_for('pharmacy_details', pharmacy_id=pharmacy.id) }}" method="GET" style="display: flex; gap: 0.5rem;">
+        <input 
+          type="text" 
+          name="q" 
+          value="{{ search_term }}" 
+          class="form-control" 
+          placeholder="Filter medicines..." 
+          style="width: 220px;"
+        >
+        <button type="submit" class="btn btn-outline btn-sm">Filter</button>
+        {% if search_term %}
+          <a href="{{ url_for('pharmacy_details', pharmacy_id=pharmacy.id) }}" class="btn btn-outline btn-sm">Clear</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- Inventory Table -->
+    {% if inventory and inventory|length > 0 %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Medicine Name</th>
+              <th>Generic Formula</th>
+              <th>Category</th>
+              <th>Dosage</th>
+              <th>Status</th>
+              <th>Available Units</th>
+              <th>Unit Price</th>
+              <th>Last Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in inventory %}
+              <tr>
+                <td>
+                  <strong>{{ item.medicine_name }}</strong>
+                  {% if item.prescription_required %}
+                    <span class="badge badge-rx" style="margin-left: 4px;">Rx</span>
+                  {% else %}
+                    <span class="badge badge-otc" style="margin-left: 4px;">OTC</span>
+                  {% endif %}
+                </td>
+                <td class="text-muted">{{ item.generic_name }}</td>
+                <td>{{ item.category }}</td>
+                <td><span class="badge badge-demo">{{ item.dosage_form }}</span></td>
+                <td>
+                  {% if item.stock_quantity > 10 %}
+                    <span class="badge badge-in-stock">In Stock</span>
+                  {% elif item.stock_quantity > 0 %}
+                    <span class="badge badge-low-stock">Low Stock</span>
+                  {% else %}
+                    <span class="badge badge-out-of-stock">Out of Stock</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.stock_quantity > 0 %}
+                    <strong>{{ item.stock_quantity }}</strong> units
+                  {% else %}
+                    <span style="color: var(--danger); font-weight: 700;">0 units</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <strong style="color: var(--primary-dark); font-size: 1.1rem;">
+                    {{ item.price|currency }}
+                  </strong>
+                </td>
+                <td class="text-muted" style="font-size: 0.85rem;">
+                  {{ item.last_updated|time_ago }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="unavailable-box">
+        <p class="unavailable-desc">
+          No medicines match your filter for this pharmacy.
+        </p>
+        <a href="{{ url_for('pharmacy_details', pharmacy_id=pharmacy.id) }}" class="btn btn-primary btn-sm">
+          Show All Medicines
+        </a>
+      </div>
+    {% endif %}
+
+    <div style="margin-bottom: 3rem;">
+      <a href="{{ url_for('index') }}" class="btn btn-outline">
+        ← Back to Medicine Finder
+      </a>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-disclaimer">
+        <strong>⚠️ Healthcare Notice:</strong> Inventory is updated by the respective pharmacy team. Contact the store beforehand for critical emergency medications.
+      </div>
+      <div class="footer-bottom">
+        <div>© 2026 MEDFIND – Smart Medicine Availability Finder</div>
+        <div>Tagline: <em>Find Medicines. Save Time. Stay Informed.</em></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
+
